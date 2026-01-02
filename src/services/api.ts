@@ -83,12 +83,10 @@ async function getAuthHeaders(): Promise<HeadersInit> {
     const session = await fetchAuthSession();
     const token = session.tokens?.idToken?.toString();
 
-    // Token varsa Authorization ekle, yoksa hiç ekleme
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
   } catch {
-    // login değilse sorun yok, sadece Authorization eklemiyoruz
   }
 
   return headers;

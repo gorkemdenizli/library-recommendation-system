@@ -30,13 +30,9 @@ export function Recommendations() {
 
     setIsLoading(true);
     try {
-      // TODO: Replace with actual Bedrock API call
-      // This will call Lambda function that uses Amazon Bedrock
-      // to generate personalized recommendations based on the query
-      const recs = await getRecommendations();
+      const recs = await getRecommendations(query.trim());
       setRecommendations(recs);
 
-      // Fetch full book details for each recommendation
       const books = await Promise.all(recs.map((rec) => getBook(rec.bookId)));
       setRecommendedBooks(books.filter((book): book is Book => book !== null));
     } catch (error) {
@@ -45,6 +41,7 @@ export function Recommendations() {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen py-12 px-4">
