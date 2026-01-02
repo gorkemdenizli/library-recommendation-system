@@ -1,3 +1,4 @@
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { Book, ReadingList, Review, Recommendation } from '@/types';
 import { mockBooks, mockReadingLists } from './mockData';
 
@@ -71,6 +72,28 @@ import { mockBooks, mockReadingLists } from './mockData';
 //   }
 // }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  try {
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString();
+
+    // Token varsa Authorization ekle, yoksa hiç ekleme
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    // login değilse sorun yok, sadece Authorization eklemiyoruz
+  }
+
+  return headers;
+}
+
 /**
  * Get all books from the catalog
  *
@@ -88,12 +111,14 @@ import { mockBooks, mockReadingLists } from './mockData';
  *
  * Expected response: Array of Book objects from DynamoDB
  */
+
+// Update getBooks function:
 export async function getBooks(): Promise<Book[]> {
-  // TODO: Remove this mock implementation after deploying Lambda
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(mockBooks), 500);
-  });
+  const response = await fetch(`${API_BASE_URL}/books`);
+  if (!response.ok) throw new Error('Failed to fetch books');
+  return response.json();
 }
+
 
 /**
  * Get a single book by ID
@@ -215,29 +240,17 @@ export async function deleteBook(): Promise<void> {
  *
  * Documentation: https://docs.aws.amazon.com/bedrock/latest/userguide/
  */
-export async function getRecommendations(): Promise<Recommendation[]> {
-  // TODO: Remove this mock implementation after deploying Bedrock Lambda
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const mockRecommendations: Recommendation[] = [
-        {
-          id: '1',
-          bookId: '1',
-          reason:
-            'Based on your interest in philosophical fiction, this book explores themes of choice and regret.',
-          confidence: 0.92,
-        },
-        {
-          id: '2',
-          bookId: '2',
-          reason:
-            'If you enjoy science-based thrillers, this space adventure combines humor with hard science.',
-          confidence: 0.88,
-        },
-      ];
-      resolve(mockRecommendations);
-    }, 1000);
+
+export async function getRecommendations(query: string): Promise<Recommendation[]> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/recommendations`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ query }),
   });
+  if (!response.ok) throw new Error('Failed to get recommendations');
+  const data = await response.json();
+  return data.recommendations;
 }
 
 /**
@@ -292,7 +305,8 @@ export async function getReadingLists(): Promise<ReadingList[]> {
  *
  * Expected response: Complete ReadingList object with generated id and timestamps
  */
-export async function createReadingList(
+
+/* export async function createReadingList(
   list: Omit<ReadingList, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<ReadingList> {
   // TODO: Remove this mock implementation after deploying Lambda
@@ -308,6 +322,23 @@ export async function createReadingList(
     }, 500);
   });
 }
+*/
+
+export async function createReadingList(
+  list: Omit<ReadingList, "id" | "createdAt" | "updatedAt">
+): Promise<ReadingList> {
+  const headers = await getAuthHeaders();
+
+  const response = await fetch(`${API_BASE_URL}/reading-lists`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(list),
+  });
+
+  if (!response.ok) throw new Error("Failed to create reading list");
+  return response.json();
+}
+
 
 /**
  * Update a reading list
