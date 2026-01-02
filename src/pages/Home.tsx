@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
 
 /**
- * Modern Home page with stunning gradients and animations
+ * Modern Home page with stunning gradients and animations.
  */
 export function Home() {
   return (
