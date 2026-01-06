@@ -1,19 +1,30 @@
 version: 0.2
+
 phases:
   install:
     runtime-versions:
       nodejs: 20
     commands:
       - echo Installing dependencies...
-      - npm install
+      - npm ci
+
   build:
     commands:
       - echo Building application...
       - npm run build
+
+  post_build:
+    commands:
+      - echo Deploying to S3...
+      - aws s3 sync dist/ s3://library-app-frontend-gorkemdenizli --delete
+      - echo Creating CloudFront invalidation...
+      - aws cloudfront create-invalidation --distribution-id E3MOGNLO1GFQTP --paths "/*"
+
 artifacts:
   files:
-    - '**/*'
+    - "**/*"
   base-directory: dist
+
 cache:
   paths:
-    - 'node_modules/**/*'
+    - "node_modules/**/*"
