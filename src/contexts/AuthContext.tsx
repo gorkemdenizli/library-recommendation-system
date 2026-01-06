@@ -1,4 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
+import { fetchUserAttributes } from 'aws-amplify/auth';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { signIn, signUp, signOut, getCurrentUser } from 'aws-amplify/auth';
 import React, { createContext, useState, useEffect } from 'react';
 import { User } from '@/types';
@@ -27,80 +29,40 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-/**
- * ============================================================================
- * AUTHENTICATION CONTEXT - AWS COGNITO INTEGRATION
- * ============================================================================
- *
- * ⚠️ IMPORTANT: This file currently uses MOCK authentication with localStorage.
- *
- * TO IMPLEMENT AWS COGNITO:
- * Follow Week 3 in IMPLEMENTATION_GUIDE.md
- *
- * ============================================================================
- * IMPLEMENTATION CHECKLIST:
- * ============================================================================
- *
- * [ ] Week 3, Day 1-2: Create Cognito User Pool in AWS Console
- * [ ] Week 3, Day 1-2: Note User Pool ID and App Client ID
- * [ ] Week 3, Day 1-2: Update .env file with Cognito credentials
- * [ ] Week 3, Day 3-4: Install AWS Amplify: npm install aws-amplify
- * [ ] Week 3, Day 3-4: Configure Amplify in src/main.tsx (see below)
- * [ ] Week 3, Day 3-4: Import Cognito functions at top of this file
- * [ ] Week 3, Day 3-4: Replace login() function with Cognito signIn
- * [ ] Week 3, Day 3-4: Replace logout() function with Cognito signOut
- * [ ] Week 3, Day 3-4: Replace signup() function with Cognito signUp
- * [ ] Week 3, Day 3-4: Update useEffect to check Cognito session
- * [ ] Week 3, Day 3-4: Remove localStorage mock code
- * [ ] Week 3, Day 3-4: Test registration and login flow
- *
- * ============================================================================
- * STEP 1: Configure Amplify in src/main.tsx
- * ============================================================================
- *
- * Add this code BEFORE ReactDOM.createRoot():
- *
- * import { Amplify } from 'aws-amplify';
- *
- * Amplify.configure({
- *   Auth: {
- *     Cognito: {
- *       userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
- *       userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID,
- *     }
- *   }
- * });
- *
- * ============================================================================
- * STEP 2: Import Cognito functions at top of this file
- * ============================================================================
- *
- * import { signIn, signUp, signOut, getCurrentUser } from 'aws-amplify/auth';
- *
- * ============================================================================
- * STEP 3: Replace mock functions below with Cognito implementations
- * ============================================================================
- *
- * See detailed code in IMPLEMENTATION_GUIDE.md - Week 3, Day 3-4
- *
- * Documentation: https://docs.amplify.aws/lib/auth/getting-started/q/platform/js/
- *
- * ============================================================================
- */
+function getRoleFromSession(session: Awaited<ReturnType<typeof fetchAuthSession>>): 'admin' | 'user' {
+  const payload = session.tokens?.idToken?.payload;
+  const groupsClaim = payload?.['cognito:groups'] as string[] | string | undefined;
+
+  if (Array.isArray(groupsClaim)) {
+    return groupsClaim.includes('Admins') ? 'admin' : 'user';
+  }
+
+  if (typeof groupsClaim === 'string') {
+    // Bazı durumlarda "Admins,OtherGroup" şeklinde gelebilir
+    return groupsClaim.split(',').map((s) => s.trim()).includes('Admins') ? 'admin' : 'user';
+  }
+
+  return 'user';
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
+  useEffect(() => {
     const checkAuth = async () => {
       try {
         const currentUser = await getCurrentUser();
+        const attrs = await fetchUserAttributes();
+        const session = await fetchAuthSession();
+        const role = getRoleFromSession(session);
+
         setUser({
           id: currentUser.userId,
-          email: '', 
-          name: currentUser.username,
-          role: 'user',
-          createdAt: new Date().toISOString()
+          email: attrs.email ?? '',
+          name: attrs.name ?? currentUser.username,
+          role,
+          createdAt: new Date().toISOString(),
         });
       } catch {
         setUser(null);
@@ -112,17 +74,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkAuth();
   }, []);
 
-
   const login = async (email: string, password: string) => {
     try {
       const { isSignedIn } = await signIn({ username: email, password });
+
       if (isSignedIn) {
-        const user = await getCurrentUser();
+        const currentUser = await getCurrentUser();
+        const attrs = await fetchUserAttributes();
+        const session = await fetchAuthSession();
+        const role = getRoleFromSession(session);
+
         setUser({
-          id: user.userId,
-          email: email,
-          name: user.username,
-          role: 'user',
+          id: currentUser.userId,
+          email: attrs.email ?? email,
+          name: attrs.name ?? currentUser.username,
+          role,
           createdAt: new Date().toISOString(),
         });
       }

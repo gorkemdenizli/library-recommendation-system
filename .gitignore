@@ -48,3 +48,7 @@ samconfig.toml
 # Misc
 *.orig
 .eslintcache
+
+cat > .gitignore << EOF
+dist/
+EOF

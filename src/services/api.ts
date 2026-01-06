@@ -2,75 +2,6 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { Book, ReadingList, Review, Recommendation } from '@/types';
 import { mockBooks, mockReadingLists } from './mockData';
 
-/**
- * ============================================================================
- * API SERVICE LAYER - BACKEND COMMUNICATION
- * ============================================================================
- *
- * ⚠️ IMPORTANT: This file currently uses MOCK DATA for all API calls.
- *
- * TO IMPLEMENT AWS BACKEND:
- * Follow the step-by-step guide in IMPLEMENTATION_GUIDE.md
- *
- * Quick Reference:
- * - Week 2: Implement Books API (getBooks, getBook, createBook, etc.)
- * - Week 2: Implement Reading Lists API
- * - Week 3: Add Cognito authentication headers
- * - Week 4: Implement AI recommendations with Bedrock
- *
- * ============================================================================
- * IMPLEMENTATION CHECKLIST:
- * ============================================================================
- *
- * [ ] Week 1: Set up AWS account and first Lambda function
- * [ ] Week 2: Create DynamoDB tables (Books, ReadingLists)
- * [ ] Week 2: Deploy Lambda functions for Books API
- * [ ] Week 2: Deploy Lambda functions for Reading Lists API
- * [ ] Week 2: Set VITE_API_BASE_URL in .env file
- * [ ] Week 3: Set up Cognito User Pool
- * [ ] Week 3: Install aws-amplify: npm install aws-amplify
- * [ ] Week 3: Configure Amplify in src/main.tsx
- * [ ] Week 3: Update AuthContext with Cognito functions
- * [ ] Week 3: Implement getAuthHeaders() function below
- * [ ] Week 3: Add Cognito authorizer to API Gateway
- * [ ] Week 4: Deploy Bedrock recommendations Lambda
- * [ ] Week 4: Update getRecommendations() function
- * [ ] Week 4: Remove all mock data returns
- * [ ] Week 4: Delete src/services/mockData.ts
- *
- * ============================================================================
- */
-
-// TODO: Uncomment this after deploying API Gateway (Week 2, Day 4)
-// const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-
-/**
- * TODO: Implement this function in Week 3, Day 4
- *
- * This function gets the JWT token from Cognito and adds it to API requests.
- *
- * Implementation:
- * 1. Import: import { fetchAuthSession } from 'aws-amplify/auth';
- * 2. Get session: const session = await fetchAuthSession();
- * 3. Extract token: const token = session.tokens?.idToken?.toString();
- * 4. Return headers with Authorization: Bearer {token}
- *
- * See IMPLEMENTATION_GUIDE.md - Week 3, Day 5-7 for complete code.
- */
-// async function getAuthHeaders() {
-//   try {
-//     const session = await fetchAuthSession();
-//     const token = session.tokens?.idToken?.toString();
-//     return {
-//       'Authorization': `Bearer ${token}`,
-//       'Content-Type': 'application/json'
-//     };
-//   } catch {
-//     return {
-//       'Content-Type': 'application/json'
-//     };
-//   }
-// }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -145,70 +76,80 @@ export async function getBook(id: string): Promise<Book | null> {
   });
 }
 
-/**
- * Create a new book (admin only)
- *
- * TODO: Replace with real API call in Week 2, Day 5-7
- *
- * Implementation steps:
- * 1. Deploy Lambda function: library-create-book
- * 2. Create API Gateway endpoint: POST /books
- * 3. Add Cognito authorizer (Week 3)
- * 4. Replace mock code below with:
- *
- * const headers = await getAuthHeaders();
- * const response = await fetch(`${API_BASE_URL}/books`, {
- *   method: 'POST',
- *   headers,
- *   body: JSON.stringify(book)
- * });
- * if (!response.ok) throw new Error('Failed to create book');
- * return response.json();
- *
- * Note: This endpoint requires admin role in Cognito
- */
-export async function createBook(book: Omit<Book, 'id'>): Promise<Book> {
-  // TODO: Remove this mock implementation after deploying Lambda
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newBook: Book = {
-        ...book,
-        id: Date.now().toString(),
-      };
-      resolve(newBook);
-    }, 500);
+
+export async function createBook(book: {
+  title: string;
+  author: string;
+  genre?: string;
+  description?: string;
+  coverImage?: string;
+  rating?: number;
+  publishedYear?: number;
+  isbn?: string;
+}): Promise<Book> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/books`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(book),
   });
+
+  if (!response.ok) throw new Error("Failed to create book");
+  return response.json();
 }
 
 /**
  * Update an existing book (admin only)
- * TODO: Replace with PUT /books/:id API call
+ * PUT /books/:id
  */
-export async function updateBook(id: string, book: Partial<Book>): Promise<Book> {
-  // Mock implementation
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const existingBook = mockBooks.find((b) => b.id === id);
-      const updatedBook: Book = {
-        ...existingBook!,
-        ...book,
-        id,
-      };
-      resolve(updatedBook);
-    }, 500);
-  });
+export async function updateBook(
+  id: string,
+  updates: Partial<{
+    title: string;
+    author: string;
+    genre: string;
+    description: string;
+    coverImage: string;
+    rating: number;
+    publishedYear: number;
+    isbn: string;
+  }>
+): Promise<Book> {
+  const headers = await getAuthHeaders();
+
+  const response = await fetch(
+    `${API_BASE_URL}/books/${encodeURIComponent(id)}`,
+    {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(updates),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to update book");
+  }
+
+  return response.json();
 }
 
-/**
- * Delete a book (admin only)
- * TODO: Replace with DELETE /books/:id API call
- */
-export async function deleteBook(): Promise<void> {
-  // Mock implementation
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(), 300);
-  });
+
+export async function deleteBook(id: string): Promise<void> {
+  const headers = await getAuthHeaders();
+
+  const response = await fetch(
+    `${API_BASE_URL}/books/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+      headers,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to delete book");
+  }
 }
+
 
 /**
  * Get AI-powered book recommendations using Amazon Bedrock

@@ -12,6 +12,7 @@ import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Admin } from './pages/Admin';
 import { NotFound } from './pages/NotFound';
+import Verify from "./pages/Verify";
 
 /**
  * Main App component with routing and layout
@@ -38,6 +39,7 @@ function App() {
               />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/verify" element={<Verify />} />
               <Route
                 path="/admin"
                 element={

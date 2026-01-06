@@ -14,6 +14,7 @@ export function Admin() {
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
   const [newBook, setNewBook] = useState({
     title: '',
     author: '',
@@ -29,48 +30,40 @@ export function Admin() {
     loadBooks();
   }, []);
 
+  const safeHandleApiError = (error: unknown, context: string) => {
+    console.error(`Admin ${context} error:`, error);
+
+    try {
+      handleApiError(error);
+    } catch (e) {
+      console.error(`handleApiError crashed (${context}):`, e);
+      // İstersen fallback:
+      // alert('An unexpected error occurred.');
+    }
+  };
+
+  const normalizeBooks = (data: unknown): Book[] => {
+    // API bazen array, bazen { items: [] } veya { books: [] } döndürebilir
+    if (Array.isArray(data)) return data as Book[];
+
+    const anyData = data as any;
+    if (Array.isArray(anyData?.items)) return anyData.items as Book[];
+    if (Array.isArray(anyData?.books)) return anyData.books as Book[];
+
+    return [];
+  };
+
   const loadBooks = async () => {
     setIsLoading(true);
+
     try {
       const data = await getBooks();
-      setBooks(data);
+      setBooks(normalizeBooks(data));
     } catch (error) {
-      handleApiError(error);
+      safeHandleApiError(error, 'loadBooks');
+      setBooks([]); // UI'nın patlamasını engellemek için
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleCreateBook = async () => {
-    if (!newBook.title || !newBook.author) {
-      alert('Please fill in required fields');
-      return;
-    }
-
-    try {
-      // TODO: Replace with Lambda API call
-      const created = await createBook(newBook);
-      setBooks([...books, created]);
-      setIsModalOpen(false);
-      resetForm();
-      showSuccess('Book added successfully!');
-    } catch (error) {
-      handleApiError(error);
-    }
-  };
-
-  const handleDeleteBook = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this book?')) {
-      return;
-    }
-
-    try {
-      // TODO: Replace with Lambda API call
-      await deleteBook();
-      setBooks(books.filter((book) => book.id !== id));
-      showSuccess('Book deleted successfully!');
-    } catch (error) {
-      handleApiError(error);
     }
   };
 
@@ -85,6 +78,38 @@ export function Admin() {
       publishedYear: new Date().getFullYear(),
       isbn: '',
     });
+  };
+
+  const handleCreateBook = async () => {
+    if (!newBook.title || !newBook.author) {
+      alert('Please fill in required fields');
+      return;
+    }
+
+    try {
+      const created = await createBook(newBook);
+      setBooks((prev) => [...prev, created]);
+
+      setIsModalOpen(false);
+      resetForm();
+      showSuccess('Book added successfully!');
+    } catch (error) {
+      safeHandleApiError(error, 'handleCreateBook');
+    }
+  };
+
+  const handleDeleteBook = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this book?')) {
+      return;
+    }
+
+    try {
+      await deleteBook(id);
+      setBooks((prev) => prev.filter((book) => book.id !== id));
+      showSuccess('Book deleted successfully!');
+    } catch (error) {
+      safeHandleApiError(error, 'handleDeleteBook');
+    }
   };
 
   if (isLoading) {
@@ -153,17 +178,21 @@ export function Admin() {
                         <Button variant="secondary" size="sm">
                           Edit
                         </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleDeleteBook(book.id)}
-                        >
+                        <Button variant="danger" size="sm" onClick={() => handleDeleteBook(book.id)}>
                           Delete
                         </Button>
                       </div>
                     </td>
                   </tr>
                 ))}
+
+                {books.length === 0 && (
+                  <tr>
+                    <td className="py-6 px-4 text-slate-500" colSpan={5}>
+                      No books found.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -219,14 +248,24 @@ export function Admin() {
               max="5"
               step="0.1"
               value={newBook.rating}
-              onChange={(e) => setNewBook({ ...newBook, rating: parseFloat(e.target.value) })}
+              onChange={(e) =>
+                setNewBook({
+                  ...newBook,
+                  rating: Number.isFinite(parseFloat(e.target.value)) ? parseFloat(e.target.value) : 0,
+                })
+              }
             />
 
             <Input
               label="Published Year"
               type="number"
               value={newBook.publishedYear}
-              onChange={(e) => setNewBook({ ...newBook, publishedYear: parseInt(e.target.value) })}
+              onChange={(e) =>
+                setNewBook({
+                  ...newBook,
+                  publishedYear: parseInt(e.target.value, 10) || new Date().getFullYear(),
+                })
+              }
             />
 
             <Input
@@ -240,7 +279,14 @@ export function Admin() {
               <Button variant="primary" onClick={handleCreateBook} className="flex-1">
                 Add Book
               </Button>
-              <Button variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  resetForm();
+                }}
+                className="flex-1"
+              >
                 Cancel
               </Button>
             </div>
