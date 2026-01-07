@@ -76,7 +76,7 @@ export async function getBook(id: string): Promise<Book | null> {
   try {
     const response = await fetch(`/api/books/${id}`);
     const data = await response.json();
-
+    
     if (!response.ok) {
       throw new Error('Failed to fetch book');
     }
@@ -87,6 +87,7 @@ export async function getBook(id: string): Promise<Book | null> {
     return null;
   }
 }
+
 
 
 

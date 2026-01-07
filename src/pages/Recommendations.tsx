@@ -31,18 +31,21 @@ export function Recommendations() {
     setIsLoading(true);
     try {
       const recs: Recommendation[] = await getRecommendations(query.trim());
-      console.log('Recommendations from API:', recs); 
+      console.log('Recommendations from API:', recs);
       setRecommendations(recs);
 
       const books = await Promise.all(recs.map((rec) => getBook(rec.bookId)));
       console.log('Books from API:', books); 
+      
       setRecommendedBooks(books.filter((book): book is Book => book !== null));
+
     } catch (error) {
       handleApiError(error);
     } finally {
       setIsLoading(false);
     }
   };
+
 
 
   return (
