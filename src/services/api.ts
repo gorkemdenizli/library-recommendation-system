@@ -76,17 +76,19 @@ export async function getBook(id: string): Promise<Book | null> {
   try {
     const response = await fetch(`/api/books/${id}`);
     const data = await response.json();
-    
+
     if (!response.ok) {
       throw new Error('Failed to fetch book');
     }
 
+    console.log('Fetched Book:', data);
     return data || null;
   } catch (error) {
     console.error('Error fetching book:', error);
     return null;
   }
 }
+
 
 
 
