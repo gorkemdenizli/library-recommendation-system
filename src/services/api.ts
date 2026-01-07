@@ -66,15 +66,28 @@ export async function getBooks(): Promise<Book[]> {
  *
  * Expected response: Single Book object or null if not found
  */
+
 export async function getBook(id: string): Promise<Book | null> {
-  // TODO: Remove this mock implementation after deploying Lambda
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const book = mockBooks.find((b) => b.id === id);
-      resolve(book || null);
-    }, 300);
-  });
+  if (!id) {
+    console.error('Invalid book ID:', id);
+    return null;
+  }
+
+  try {
+    const response = await fetch(`/api/books/${id}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch book');
+    }
+
+    return data || null;
+  } catch (error) {
+    console.error('Error fetching book:', error);
+    return null;
+  }
 }
+
 
 
 export async function createBook(book: {
@@ -188,9 +201,12 @@ export async function getRecommendations(query: string): Promise<Recommendation[
     body: JSON.stringify({ query }),
   });
   if (!response.ok) throw new Error('Failed to get recommendations');
+
   const data = await response.json();
+  console.log(data); // Burada gelen veriyi logla
   return data.recommendations;
 }
+
 
 /**
  * Get user's reading lists

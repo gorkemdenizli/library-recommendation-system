@@ -30,10 +30,12 @@ export function Recommendations() {
 
     setIsLoading(true);
     try {
-      const recs = await getRecommendations(query.trim());
+      const recs: Recommendation[] = await getRecommendations(query.trim());
+      console.log('Recommendations from API:', recs); 
       setRecommendations(recs);
 
       const books = await Promise.all(recs.map((rec) => getBook(rec.bookId)));
+      console.log('Books from API:', books); 
       setRecommendedBooks(books.filter((book): book is Book => book !== null));
     } catch (error) {
       handleApiError(error);
@@ -136,7 +138,7 @@ export function Recommendations() {
               <span className="gradient-text">Recommended for You</span>
             </h2>
 
-            {/* Display recommendations with reasons */}
+            {/* Öneriler ve kitapları burada listeliyoruz */}
             <div className="space-y-6 mb-12">
               {recommendations.map((rec, index) => {
                 const book = recommendedBooks[index];
@@ -175,9 +177,11 @@ export function Recommendations() {
               })}
             </div>
 
+            {/* BookGrid kullanımı */}
             <BookGrid books={recommendedBooks} />
           </div>
         )}
+
 
         {!isLoading && recommendations.length === 0 && query && (
           <div className="text-center py-12">
