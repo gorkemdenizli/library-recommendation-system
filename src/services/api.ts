@@ -1,6 +1,6 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { Book, ReadingList, Review, Recommendation } from '@/types';
-import { mockBooks, mockReadingLists } from './mockData';
+import { mockReadingLists } from './mockData';
 
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
