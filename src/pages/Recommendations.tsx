@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/common/Button';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { BookGrid } from '@/components/books/BookGrid';
-import { getRecommendations, getBook } from '@/services/api';
+import { getRecommendations } from '@/services/api';
 import { Book, Recommendation } from '@/types';
 import { handleApiError } from '@/utils/errorHandling';
 
@@ -30,15 +30,32 @@ export function Recommendations() {
 
     setIsLoading(true);
     try {
-      const recs: Recommendation[] = await getRecommendations(query.trim());
+      const recs = await getRecommendations(query.trim());
       console.log('Recommendations from API:', recs);
-      setRecommendations(recs);
 
-      const books = await Promise.all(recs.map((rec) => getBook(rec.bookId)));
-      console.log('Books from API:', books); 
-      
-      setRecommendedBooks(books.filter((book): book is Book => book !== null));
+      // UI için stabil id üret (backend id dönmüyorsa)
+      const recsWithId = recs.map((r, i) => ({
+        ...r,
+        id: (r as any).id ?? `${Date.now()}-${i}`,
+      }));
 
+      setRecommendations(recsWithId);
+
+      // Recommendation -> Book (DB’ye gitmeden UI’da göster)
+      const booksFromRecs: Book[] = recsWithId.map((r) => ({
+        id: (r as any).id,
+        title: (r as any).title,
+        author: (r as any).author,
+        genre: 'AI Recommendation',
+        description: (r as any).reason,
+        coverImage: 'https://via.placeholder.com/240x360?text=AI+Pick',
+        rating: Math.round(((r as any).confidence ?? 0) * 5 * 10) / 10,
+        publishedYear: new Date().getFullYear(),
+        isbn: '',
+      }));
+
+      console.log('Books generated from recs:', booksFromRecs);
+      setRecommendedBooks(booksFromRecs);
     } catch (error) {
       handleApiError(error);
     } finally {

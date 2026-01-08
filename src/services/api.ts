@@ -43,10 +43,14 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 
 // Update getBooks function:
 export async function getBooks(): Promise<Book[]> {
-  const response = await fetch(`${API_BASE_URL}/books`);
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/books`, { headers });
   if (!response.ok) throw new Error('Failed to fetch books');
-  return response.json();
+  const data = await response.json();
+  console.log('Books from API:', data);
+  return data;
 }
+
 
 
 /**
@@ -73,22 +77,14 @@ export async function getBook(id: string): Promise<Book | null> {
     return null;
   }
 
-  try {
-    const response = await fetch(`/api/books/${id}`);
-    const data = await response.json();
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/books/${encodeURIComponent(id)}`, { headers });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch book');
-    }
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error('Failed to fetch book');
 
-    console.log('Fetched Book:', data);
-    return data || null;
-  } catch (error) {
-    console.error('Error fetching book:', error);
-    return null;
-  }
+  return response.json();
 }
-
 
 
 
