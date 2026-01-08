@@ -1,7 +1,5 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { Book, ReadingList, Review, Recommendation } from '@/types';
-import { mockReadingLists } from './mockData';
-
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -23,10 +21,39 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   return headers;
 }
 
+// JWT payload decode (base64url)
+function decodeJwtPayload(token: string): any {
+  const parts = token.split('.');
+  if (parts.length < 2) return null;
+
+  const base64Url = parts[1];
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+
+  const json = atob(padded);
+  return JSON.parse(json);
+}
+
+/**
+ * Cognito user id (sub) from idToken
+ */
+export async function getCurrentUserId(): Promise<string> {
+  const session = await fetchAuthSession();
+  const token = session.tokens?.idToken?.toString();
+
+  if (!token) throw new Error('Not authenticated');
+
+  const payload = decodeJwtPayload(token);
+  const sub = payload?.sub;
+
+  if (!sub) throw new Error('User id (sub) not found in token');
+
+  return String(sub);
+}
+
 /**
  * Get all books from the catalog
  */
-
 // Update getBooks function:
 export async function getBooks(): Promise<Book[]> {
   const headers = await getAuthHeaders();
@@ -38,11 +65,9 @@ export async function getBooks(): Promise<Book[]> {
 }
 
 
-
 /**
  * Get a single book by ID
  */
-
 export async function getBook(id: string): Promise<Book | null> {
   if (!id) {
     console.error('Invalid book ID:', id);
@@ -57,9 +82,6 @@ export async function getBook(id: string): Promise<Book | null> {
 
   return response.json();
 }
-
-
-
 
 export async function createBook(book: {
   title: string;
@@ -150,79 +172,28 @@ export async function getRecommendations(query: string): Promise<Recommendation[
 
 
 /**
- * Get user's reading lists
- *
- * TODO: Replace with real API call in Week 2, Day 5-7
- *
- * Implementation steps:
- * 1. Deploy Lambda function: library-get-reading-lists
- * 2. Lambda should query DynamoDB by userId (from Cognito token)
- * 3. Create API Gateway endpoint: GET /reading-lists
- * 4. Add Cognito authorizer (Week 3)
- * 5. Replace mock code below with:
- *
- * const headers = await getAuthHeaders();
- * const response = await fetch(`${API_BASE_URL}/reading-lists`, {
- *   headers
- * });
- * if (!response.ok) throw new Error('Failed to fetch reading lists');
- * return response.json();
- *
- * Expected response: Array of ReadingList objects for the authenticated user
+ * Get User's Reading Lists (REAL API)
  */
 export async function getReadingLists(): Promise<ReadingList[]> {
-  // TODO: Remove this mock implementation after deploying Lambda
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(mockReadingLists), 500);
-  });
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/reading-lists`, { headers });
+  if (!response.ok) throw new Error('Failed to fetch reading lists');
+  return response.json();
 }
 
 /**
  * Create a new reading list
- *
- * TODO: Replace with real API call in Week 2, Day 5-7
- *
- * Implementation steps:
- * 1. Deploy Lambda function: library-create-reading-list
- * 2. Lambda should generate UUID for id and timestamps
- * 3. Lambda should get userId from Cognito token
- * 4. Create API Gateway endpoint: POST /reading-lists
- * 5. Add Cognito authorizer (Week 3)
- * 6. Replace mock code below with:
- *
- * const headers = await getAuthHeaders();
- * const response = await fetch(`${API_BASE_URL}/reading-lists`, {
- *   method: 'POST',
- *   headers,
- *   body: JSON.stringify(list)
- * });
- * if (!response.ok) throw new Error('Failed to create reading list');
- * return response.json();
- *
- * Expected response: Complete ReadingList object with generated id and timestamps
- */
-
-/* export async function createReadingList(
-  list: Omit<ReadingList, 'id' | 'createdAt' | 'updatedAt'>
-): Promise<ReadingList> {
-  // TODO: Remove this mock implementation after deploying Lambda
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newList: ReadingList = {
-        ...list,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      resolve(newList);
-    }, 500);
-  });
-}
 */
+type CreateReadingListInput = {
+  name: string;
+  description?: string;
+  bookIds: string[];
+};
 
 export async function createReadingList(
-  list: Omit<ReadingList, "id" | "createdAt" | "updatedAt">
+  list: CreateReadingListInput
 ): Promise<ReadingList> {
+
   const headers = await getAuthHeaders();
 
   const response = await fetch(`${API_BASE_URL}/reading-lists`, {
@@ -238,36 +209,31 @@ export async function createReadingList(
 
 /**
  * Update a reading list
- * TODO: Replace with PUT /reading-lists/:id API call
  */
 export async function updateReadingList(
   id: string,
   list: Partial<ReadingList>
 ): Promise<ReadingList> {
-  // Mock implementation
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const existingList = mockReadingLists.find((l) => l.id === id);
-      const updatedList: ReadingList = {
-        ...existingList!,
-        ...list,
-        id,
-        updatedAt: new Date().toISOString(),
-      };
-      resolve(updatedList);
-    }, 500);
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/reading-lists/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(list),
   });
+  if (!response.ok) throw new Error('Failed to update reading list');
+  return response.json();
 }
 
 /**
  * Delete a reading list
- * TODO: Replace with DELETE /reading-lists/:id API call
  */
-export async function deleteReadingList(): Promise<void> {
-  // Mock implementation
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(), 300);
+export async function deleteReadingList(id: string): Promise<void> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/reading-lists/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers,
   });
+  if (!response.ok) throw new Error('Failed to delete reading list');
 }
 
 /**

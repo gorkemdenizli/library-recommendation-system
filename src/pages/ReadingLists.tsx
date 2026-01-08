@@ -1,22 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
 import { Input } from '@/components/common/Input';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { getReadingLists, createReadingList } from '@/services/api';
+import {
+  getReadingLists,
+  createReadingList,
+  updateReadingList,
+  deleteReadingList,
+} from '@/services/api';
 import { ReadingList } from '@/types';
 import { formatDate } from '@/utils/formatters';
 import { handleApiError, showSuccess } from '@/utils/errorHandling';
 
-/**
- * ReadingLists page component
- */
 export function ReadingLists() {
   const [lists, setLists] = useState<ReadingList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListDescription, setNewListDescription] = useState('');
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedList, setSelectedList] = useState<ReadingList | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadLists();
@@ -25,7 +36,6 @@ export function ReadingLists() {
   const loadLists = async () => {
     setIsLoading(true);
     try {
-      // TODO: Replace with DynamoDB query
       const data = await getReadingLists();
       setLists(data);
     } catch (error) {
@@ -42,20 +52,79 @@ export function ReadingLists() {
     }
 
     try {
-      // TODO: Replace with DynamoDB put operation
-      const newList = await createReadingList({
-        userId: '1', // TODO: Get from auth context
-        name: newListName,
+      setIsSaving(true);
+      const created = await createReadingList({
+        name: newListName.trim(),
         description: newListDescription,
         bookIds: [],
       });
-      setLists([...lists, newList]);
-      setIsModalOpen(false);
+
+      setLists((prev) => [...prev, created]);
+      setIsCreateModalOpen(false);
       setNewListName('');
       setNewListDescription('');
       showSuccess('Reading list created successfully!');
     } catch (error) {
       handleApiError(error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const openEditModal = (list: ReadingList) => {
+    setSelectedList(list);
+    setEditName(list.name ?? '');
+    setEditDescription(list.description ?? '');
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedList(null);
+    setEditName('');
+    setEditDescription('');
+  };
+
+  const handleUpdateList = async () => {
+    if (!selectedList) return;
+    if (!editName.trim()) {
+      alert('Please enter a list name');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const updated = await updateReadingList(selectedList.id, {
+        name: editName.trim(),
+        description: editDescription,
+      });
+
+      setLists((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+      closeEditModal();
+      showSuccess('Reading list updated successfully!');
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteList = async () => {
+    if (!selectedList) return;
+
+    const confirmed = window.confirm(`Delete reading list "${selectedList.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      setIsDeleting(true);
+      await deleteReadingList(selectedList.id);
+      setLists((prev) => prev.filter((l) => l.id !== selectedList.id));
+      closeEditModal();
+      showSuccess('Reading list deleted successfully!');
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -75,31 +144,16 @@ export function ReadingLists() {
             <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">My Reading Lists</h1>
             <p className="text-slate-600 text-lg">Organize your books into custom lists</p>
           </div>
-          <Button variant="primary" size="lg" onClick={() => setIsModalOpen(true)}>
+          <Button variant="primary" size="lg" onClick={() => setIsCreateModalOpen(true)}>
             Create New List
           </Button>
         </div>
 
         {lists.length === 0 ? (
           <div className="text-center py-12 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200">
-            <svg
-              className="w-16 h-16 text-slate-400 mx-auto mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              />
-            </svg>
             <h3 className="text-xl font-bold text-slate-900 mb-2">No reading lists yet</h3>
-            <p className="text-slate-600 mb-4">
-              Create your first list to start organizing your books
-            </p>
-            <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+            <p className="text-slate-600 mb-4">Create your first list to start organizing your books</p>
+            <Button variant="primary" onClick={() => setIsCreateModalOpen(true)}>
               Create Your First List
             </Button>
           </div>
@@ -109,6 +163,7 @@ export function ReadingLists() {
               <div
                 key={list.id}
                 className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-xl hover:border-blue-300 transition-all duration-300 cursor-pointer"
+                onClick={() => openEditModal(list)}
               >
                 <h3 className="text-xl font-bold text-slate-900 mb-2">{list.name}</h3>
                 <p className="text-slate-600 mb-4 line-clamp-2">{list.description}</p>
@@ -121,9 +176,10 @@ export function ReadingLists() {
           </div>
         )}
 
+        {/* Create Modal */}
         <Modal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
           title="Create New Reading List"
         >
           <div>
@@ -147,10 +203,44 @@ export function ReadingLists() {
             </div>
 
             <div className="flex gap-3">
-              <Button variant="primary" onClick={handleCreateList} className="flex-1">
+              <Button variant="primary" onClick={handleCreateList} className="flex-1" disabled={isSaving}>
                 Create List
               </Button>
-              <Button variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">
+              <Button variant="secondary" onClick={() => setIsCreateModalOpen(false)} className="flex-1">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Edit Modal */}
+        <Modal isOpen={isEditModalOpen} onClose={closeEditModal} title="Edit Reading List">
+          <div>
+            <Input
+              label="List Name"
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              required
+            />
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[100px] resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button variant="primary" onClick={handleUpdateList} className="flex-1" disabled={isSaving}>
+                Save
+              </Button>
+              <Button variant="secondary" onClick={handleDeleteList} className="flex-1" disabled={isDeleting}>
+                Delete
+              </Button>
+              <Button variant="secondary" onClick={closeEditModal} className="flex-1">
                 Cancel
               </Button>
             </div>
