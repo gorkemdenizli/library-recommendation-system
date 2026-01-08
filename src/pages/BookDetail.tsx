@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { getBook } from '@/services/api';
-import { Book } from '@/types';
+import { Modal } from '@/components/common/Modal';
+import { getBook, getReadingLists, updateReadingList } from '@/services/api';
+import type { Book, ReadingList } from '@/types';
 import { formatRating } from '@/utils/formatters';
 import { handleApiError } from '@/utils/errorHandling';
 
@@ -13,8 +14,18 @@ import { handleApiError } from '@/utils/errorHandling';
 export function BookDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
   const [book, setBook] = useState<Book | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Reading lists state
+  const [readingLists, setReadingLists] = useState<ReadingList[]>([]);
+  const [isListsLoading, setIsListsLoading] = useState(false);
+
+  // Add-to-list modal state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedListId, setSelectedListId] = useState<string>('');
+  const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -22,6 +33,11 @@ export function BookDetail() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    loadReadingLists();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadBook = async (bookId: string) => {
     setIsLoading(true);
@@ -39,9 +55,70 @@ export function BookDetail() {
     }
   };
 
-  // TODO: Implement add to reading list functionality
-  const handleAddToList = () => {
-    alert('Add to reading list functionality coming soon!');
+  const loadReadingLists = async () => {
+    setIsListsLoading(true);
+    try {
+      const lists = await getReadingLists();
+      setReadingLists(lists);
+
+      // default selection
+      if (lists.length > 0) {
+        setSelectedListId(lists[0].id);
+      } else {
+        setSelectedListId('');
+      }
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setIsListsLoading(false);
+    }
+  };
+
+  const handleAddToList = async () => {
+    // Modal açmadan önce listeleri yenilemek iyi olur (başka sayfada değişmiş olabilir)
+    await loadReadingLists();
+    setIsAddModalOpen(true);
+  };
+
+  const handleConfirmAddToList = async () => {
+    if (!book) return;
+
+    if (!selectedListId) {
+      alert('Please select a reading list');
+      return;
+    }
+
+    const target = readingLists.find((l) => l.id === selectedListId);
+    if (!target) {
+      alert('Selected reading list not found');
+      return;
+    }
+
+    // Duplicate engelle
+    const currentIds = Array.isArray(target.bookIds) ? target.bookIds.map(String) : [];
+    if (currentIds.includes(String(book.id))) {
+      alert('This book is already in the selected reading list.');
+      return;
+    }
+
+    try {
+      setIsAdding(true);
+
+      const nextBookIds = [...currentIds, String(book.id)];
+      await updateReadingList(selectedListId, { bookIds: nextBookIds });
+
+      // UI state güncelle
+      setReadingLists((prev) =>
+        prev.map((l) => (l.id === selectedListId ? { ...l, bookIds: nextBookIds } : l))
+      );
+
+      setIsAddModalOpen(false);
+      alert('Book added to reading list!');
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   if (isLoading) {
@@ -69,12 +146,7 @@ export function BookDetail() {
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           <span className="font-semibold">Back</span>
         </button>
@@ -103,27 +175,16 @@ export function BookDetail() {
 
               <div className="flex flex-wrap items-center gap-4 mb-8">
                 <div className="flex items-center bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-2 rounded-xl border border-amber-200 shadow-sm">
-                  <svg
-                    className="w-5 h-5 text-amber-500 mr-2"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
+                  <svg className="w-5 h-5 text-amber-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                   </svg>
-                  <span className="text-lg font-bold text-amber-700">
-                    {formatRating(book.rating)}
-                  </span>
+                  <span className="text-lg font-bold text-amber-700">{formatRating(book.rating)}</span>
                 </div>
 
                 <span className="badge-gradient px-4 py-2 text-sm">{book.genre}</span>
 
                 <div className="flex items-center text-slate-600 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
-                  <svg
-                    className="w-5 h-5 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -151,28 +212,14 @@ export function BookDetail() {
 
               <div className="flex flex-wrap gap-4">
                 <Button variant="primary" size="lg" onClick={handleAddToList}>
-                  <svg
-                    className="w-5 h-5 mr-2 inline"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                    />
+                  <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
                   Add to Reading List
                 </Button>
+
                 <Button variant="outline" size="lg">
-                  <svg
-                    className="w-5 h-5 mr-2 inline"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -187,7 +234,7 @@ export function BookDetail() {
           </div>
         </div>
 
-        {/* TODO: Implement reviews section */}
+        {/* Reviews section placeholder */}
         <div className="mt-8 glass-effect rounded-3xl shadow-xl border border-white/20 p-8 md:p-12">
           <h2 className="text-3xl font-bold text-slate-900 mb-6 flex items-center">
             <span className="w-1 h-8 bg-gradient-to-b from-violet-600 to-indigo-600 rounded-full mr-3"></span>
@@ -195,12 +242,7 @@ export function BookDetail() {
           </h2>
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-gradient-to-br from-violet-100 to-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-8 h-8 text-violet-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-8 h-8 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -213,6 +255,51 @@ export function BookDetail() {
           </div>
         </div>
       </div>
+
+      {/* Add to Reading List Modal */}
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add to Reading List">
+        <div className="space-y-4">
+          {isListsLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <LoadingSpinner size="md" />
+            </div>
+          ) : readingLists.length === 0 ? (
+            <div className="text-slate-700">
+              You don’t have any reading lists yet. Create one from the Reading Lists page first.
+            </div>
+          ) : (
+            <>
+              <label className="block text-sm font-medium text-slate-700">Select a list</label>
+              <select
+                value={selectedListId}
+                onChange={(e) => setSelectedListId(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none"
+              >
+                {readingLists.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={handleConfirmAddToList}
+                  disabled={isAdding || !selectedListId}
+                  className="flex-1"
+                >
+                  {isAdding ? 'Adding...' : 'Add'}
+                </Button>
+                <Button variant="secondary" size="lg" onClick={() => setIsAddModalOpen(false)} className="flex-1">
+                  Cancel
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

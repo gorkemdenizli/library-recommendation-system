@@ -236,6 +236,23 @@ export async function deleteReadingList(id: string): Promise<void> {
   if (!response.ok) throw new Error('Failed to delete reading list');
 }
 
+export async function addBookToReadingList(listId: string, bookId: string) {
+  // 1) Mevcut listeleri çek
+  const lists = await getReadingLists();
+  const list = lists.find((l) => l.id === listId);
+
+  if (!list) {
+    throw new Error('Reading list not found');
+  }
+
+  // 2) bookIds içine ekle (duplicate engelle)
+  const nextBookIds = Array.from(new Set([...(list.bookIds ?? []), String(bookId)]));
+
+  // 3) Update et
+  return updateReadingList(listId, { bookIds: nextBookIds });
+}
+
+
 /**
  * Get reviews for a book
  * TODO: Replace with GET /books/:id/reviews API call
