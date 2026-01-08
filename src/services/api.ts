@@ -25,20 +25,6 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 
 /**
  * Get all books from the catalog
- *
- * TODO: Replace with real API call in Week 2, Day 3-4
- *
- * Implementation steps:
- * 1. Deploy Lambda function: library-get-books (see IMPLEMENTATION_GUIDE.md)
- * 2. Create API Gateway endpoint: GET /books
- * 3. Uncomment API_BASE_URL at top of file
- * 4. Replace mock code below with:
- *
- * const response = await fetch(`${API_BASE_URL}/books`);
- * if (!response.ok) throw new Error('Failed to fetch books');
- * return response.json();
- *
- * Expected response: Array of Book objects from DynamoDB
  */
 
 // Update getBooks function:
@@ -55,20 +41,6 @@ export async function getBooks(): Promise<Book[]> {
 
 /**
  * Get a single book by ID
- *
- * TODO: Replace with real API call in Week 2, Day 3-4
- *
- * Implementation steps:
- * 1. Deploy Lambda function: library-get-book (see IMPLEMENTATION_GUIDE.md)
- * 2. Create API Gateway endpoint: GET /books/{id}
- * 3. Replace mock code below with:
- *
- * const response = await fetch(`${API_BASE_URL}/books/${id}`);
- * if (response.status === 404) return null;
- * if (!response.ok) throw new Error('Failed to fetch book');
- * return response.json();
- *
- * Expected response: Single Book object or null if not found
  */
 
 export async function getBook(id: string): Promise<Book | null> {
@@ -161,36 +133,6 @@ export async function deleteBook(id: string): Promise<void> {
     throw new Error("Failed to delete book");
   }
 }
-
-
-/**
- * Get AI-powered book recommendations using Amazon Bedrock
- *
- * TODO: Replace with real API call in Week 4, Day 1-2
- *
- * Implementation steps:
- * 1. Enable Bedrock model access in AWS Console (Claude 3 Haiku recommended)
- * 2. Deploy Lambda function: library-get-recommendations (see IMPLEMENTATION_GUIDE.md)
- * 3. Create API Gateway endpoint: POST /recommendations
- * 4. Add Cognito authorizer
- * 5. Update function signature to accept query parameter:
- *    export async function getRecommendations(query: string): Promise<Recommendation[]>
- * 6. Replace mock code below with:
- *
- * const headers = await getAuthHeaders();
- * const response = await fetch(`${API_BASE_URL}/recommendations`, {
- *   method: 'POST',
- *   headers,
- *   body: JSON.stringify({ query })
- * });
- * if (!response.ok) throw new Error('Failed to get recommendations');
- * const data = await response.json();
- * return data.recommendations;
- *
- * Expected response: Array of recommendations with title, author, reason, confidence
- *
- * Documentation: https://docs.aws.amazon.com/bedrock/latest/userguide/
- */
 
 export async function getRecommendations(query: string): Promise<Recommendation[]> {
   const headers = await getAuthHeaders();
