@@ -692,3 +692,85 @@ This project is part of an academic course at Istanbul Okan University.
 **Project Type**: 4-week intensive, beginner-friendly, AWS serverless  
 **Status**: Frontend complete ✅ | Backend implementation guides ready ✅  
 **Next Step**: [QUICK_START.md](./QUICK_START.md) 🚀
+
+
+## - Team member contributions
+
+- Semih Görkem Denizli
+- Alp Giray Karakoç
+
+*We did the implementation together.
+
+## Cloudfront
+
+- d3gjmypr4gr05w.cloudfront.net
+
+## S3
+
+- https://library-app-frontend-gorkemdenizli.s3.us-east-1.amazonaws.com/
+
+## - Lambda Functions
+
+- library-delete-reading-list
+
+- library-update-book
+
+- library-get-books
+
+- library-create-reading-list
+
+- library-get-book
+
+- library-delete-book
+
+- library-get-reading-lists
+
+- library-create-book
+
+- library-update-reading-list
+
+- hello-world-test
+
+- library-get-recommendations
+
+## - API Endpoints
+
+/
+├── /books
+│   ├── GET
+│   │   └── Retrieve all books (public)
+│   ├── POST
+│   │   └── Create a new book (admin only)
+│   └── /{id}
+│       ├── GET
+│       │   └── Retrieve book details by ID (public)
+│       ├── PUT
+│       │   └── Update book information (admin only)
+│       ├── DELETE
+│       │   └── Delete a book (admin only)
+│       └── OPTIONS
+│
+├── /reading-lists
+│   ├── GET
+│   │   └── Retrieve reading lists for the authenticated user
+│   ├── POST
+│   │   └── Create a new reading list for the authenticated user
+│   └── /{id}
+│       ├── PUT
+│       │   └── Update an existing reading list (owner only)
+│       ├── DELETE
+│       │   └── Delete a reading list (owner only)
+│       └── OPTIONS
+│
+├── /recommendations
+│   ├── POST
+│   │   └── Generate AI-powered book recommendations for the authenticated user
+│   └── OPTIONS
+│
+└── OPTIONS
+    └── CORS preflight handling
+
+
+## - Architecture Diagram
+
+![System Architecture](src/assets/architecture-diagram.png)
