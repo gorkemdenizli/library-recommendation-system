@@ -735,13 +735,16 @@ This project is part of an academic course at Istanbul Okan University.
 
 ## - API Endpoints
 
+## API Endpoints
+
+```text
 /
 ├── /books
 │   ├── GET
 │   │   └── Retrieve all books (public)
 │   ├── POST
 │   │   └── Create a new book (admin only)
-│   └── /{id}
+│   └── /:id
 │       ├── GET
 │       │   └── Retrieve book details by ID (public)
 │       ├── PUT
@@ -755,20 +758,18 @@ This project is part of an academic course at Istanbul Okan University.
 │   │   └── Retrieve reading lists for the authenticated user
 │   ├── POST
 │   │   └── Create a new reading list for the authenticated user
-│   └── /{id}
+│   └── /:id
 │       ├── PUT
 │       │   └── Update an existing reading list (owner only)
 │       ├── DELETE
 │       │   └── Delete a reading list (owner only)
 │       └── OPTIONS
 │
-├── /recommendations
-│   ├── POST
-│   │   └── Generate AI-powered book recommendations for the authenticated user
-│   └── OPTIONS
-│
-└── OPTIONS
-    └── CORS preflight handling
+└── /recommendations
+    ├── POST
+    │   └── Generate AI-powered book recommendations (authenticated user)
+    └── OPTIONS
+```
 
 
 ## - Architecture Diagram
